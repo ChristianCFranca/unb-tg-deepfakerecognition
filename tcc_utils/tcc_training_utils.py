@@ -1,20 +1,14 @@
-from fastai.metrics import roc_curve, auc_roc_score
+from sklearn.metrics import roc_curve, roc_auc_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
 
 def plot_ROC(preds, labels, model_name):
     
-    if not isinstance(labels, list):
-        labels = [labels]
-    if len(preds) != len(labels):
-        print(f"Preds e Label precisam ter o mesmo tamanho. Tamanho obtidos: {len(preds)} e {len(labels)}")
-        return
-
     fpr_tpr_auc_score = []
     for pred in preds:
-        score = auc_roc_score(pred[0][:, 1], pred[1]).item()
-        fpr, tpr = roc_curve(pred[0][:, 1], pred[1])
+        score = roc_auc_score(preds[1].numpy(), preds[0][:, 1].numpy()).item()
+        fpr, tpr, thresholds = roc_curve(preds[1], preds[0][:, 1])
 
         fpr_tpr_auc_score.append([fpr, tpr, score])
 
@@ -37,4 +31,4 @@ def plot_ROC(preds, labels, model_name):
 
 
     plt.show()
-    return score
+    return score, thresholds

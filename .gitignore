@@ -1,7 +1,11 @@
 /Faces Dataset/
 /Kaggle Dataset/
-/Saved Models/
 /Faces Dataset mini/
-/Preds/
-
+/Vídeos Teste/
+/models/
+__pycache__/
 .ipynb_checkpoints
+
+Testar Vídeos Independentes.ipynb
+
+*/
