@@ -5,7 +5,6 @@ import os
 parser = argparse.ArgumentParser(description='Indica se um determinado vídeo é um deepfake.')
 parser.add_argument('video_path', type=str, help='Caminho para o vídeo.')
 parser.add_argument('--rho', type=float, help='Parâmetro de liberdade.', default=2.75)
-parser.add_argument('--follow_along', help='Se deseja que o vídeo apareça em tela durante a extração das imagens.', action="store_true", default=False)
 parser.add_argument('--check_every_frame', type=int, help='De quantos em quantos frames se deve verificar o rosto', default=30)
 parser.add_argument('--start_from', type=int, help='De qual segundo do vídeo começar', default=1)
 parser.add_argument('--for_seconds', type=int, help='Por quantos segundos a verificação deve rodar', default=None)
@@ -68,7 +67,7 @@ mtcnn = MTCNN(image_size=IMAGE_SIZE,
               keep_all=KEEP_ALL, 
               device=device)
 
-def extract_faces_from_video(video_path, follow_along=False, padding=0, size=-1, resize_factor=0.6, check_every_frame=30, start_from=1, for_seconds=None):
+def extract_faces_from_video(video_path, padding=0, resize_factor=0.6, check_every_frame=30, start_from=0, for_seconds=None, show_frames=False):
     
     # Captura o vídeo no path
     try:
@@ -86,10 +85,16 @@ def extract_faces_from_video(video_path, follow_along=False, padding=0, size=-1,
         num_frames = int(for_seconds*frame_rate)
         if v_len <= num_frames:
             num_frames = None
+    frames = []
     faces = []
     
     for i in range(1, v_len + 1):
         success = cap.grab()
+        
+        # Apertar a tecla 'q' para sair do vídeo.
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        
         if start_from >= i:
             continue
         if num_frames is not None and i >= num_frames + start_from:
@@ -104,33 +109,53 @@ def extract_faces_from_video(video_path, follow_along=False, padding=0, size=-1,
             continue
         
         if success: # Sucesso na leitura
-            boxes, _ = mtcnn.detect(Image.fromarray(frame)) # Detecta as imagens. O método detect só aceita numpy arrays
             # Obtém o frame como PIL Image (ele é capturado no formato BGR porém a MTCNN espera no formato RGB)
-            frame_new = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame_new = Image.fromarray(frame_new)
-            if boxes is not None: # Só entra se rostos forem detectados
-                for box in boxes: # Para cada uma das bouding boxes encontradas em um único frame (a princípio só deve ter uma)
-                    box = [int(b) for b in box]
-                    # Extrai a face
-                    face = frame_new.crop(box=(box[0]-padding, 
-                                               box[1]-padding, 
-                                               box[2]+padding, 
-                                               box[3]+padding))
-                    faces.append(PILImage(face))
-                    
-                    if follow_along:
-                        cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), color=[0, 255, 0], thickness=5) # Desenha um retângulo na região do rosto
-
-            if follow_along:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame_rgb = Image.fromarray(frame_rgb)
+            if show_frames:
                 frame = cv2.resize(frame, (int(frame.shape[1]*resize_factor), int(frame.shape[0]*resize_factor)))
                 cv2.imshow('frame', frame)
-            
-            # Apertar a tecla 'q' para sair do vídeo.
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+
+            if mtcnn.device.type == 'cuda':
+                frames.append(frame_rgb)
+                if i != v_len: # Não chegou no último frame
+                    continue
+                bboxes, _ = mtcnn.detect(frames)
+                
+                if bboxes is not None: # Só entra se rostos forem detectados
+                    for i, boxes in enumerate(bboxes):
+                        if boxes is not None:
+                            for box in boxes: # Para cada uma das bouding boxes encontradas em um único frame (a princípio só deve ter uma)
+                                box = [int(b) for b in box]
+                                # Extrai a face
+                                face = frames[i].crop(box=(box[0]-padding, 
+                                                           box[1]-padding, 
+                                                           box[2]+padding, 
+                                                           box[3]+padding))
+                                
+                                faces.append(PILImage(face))
+                        
+                
+            else:
+                boxes, _ = mtcnn.detect(frame_rgb) # Detecta as imagens. O método detect só aceita numpy arrays
+
+                if boxes is not None: # Só entra se rostos forem detectados
+                    for box in boxes: # Para cada uma das bouding boxes encontradas em um único frame (a princípio só deve ter uma)
+                        box = [int(b) for b in box]
+                        # Extrai a face
+                        face = frame_rgb.crop(box=(box[0]-padding, 
+                                                   box[1]-padding, 
+                                                   box[2]+padding, 
+                                                   box[3]+padding))
+                        faces.append(PILImage(face))
+
+                        if show_frames:
+                            frame = cv2.resize(frame, (int(frame.shape[1]*resize_factor), int(frame.shape[0]*resize_factor)))
+                            cv2.imshow('frame', frame)
+                    
                 
         else:
-            break
+            continue
     
     cv2.destroyAllWindows()
     cap.release()
@@ -159,7 +184,7 @@ def get_final_prediction_from_predictions(predictions, roh=2.75):
     
     return 'FAKE' if qtd_fakes >= roh*qtd_reals else 'REAL'
 
-faces = extract_faces_from_video(args.video_path, follow_along=args.follow_along, check_every_frame=args.check_every_frame, start_from=args.start_from, for_seconds=args.for_seconds)
+faces = extract_faces_from_video(args.video_path, check_every_frame=args.check_every_frame, start_from=args.start_from, for_seconds=args.for_seconds)
 if len(faces) == 0:
     print("Não foi possível detectar faces humanas no vídeo fornecido.")
     exit()
