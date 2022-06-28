@@ -1,0 +1,14 @@
+efficientnet-pytorch==0.6.3
+facenet-pytorch==2.5.2
+fastai @ file:///home/jhoward/mambaforge/conda-bld/fastai_1614117277502/work
+fastbook==0.0.14
+fastcore @ file:///home/jhoward/mambaforge/conda-bld/fastcore_1610821188764/work
+fastprogress @ file:///home/jhoward/anaconda3/conda-bld/fastprogress_1597927594295/work
+idna @ file:///home/linux1/recipes/ci/idna_1610986105248/work
+matplotlib @ file:///C:/ci/matplotlib-suite_1613408055530/work
+numpy @ file:///C:/ci/numpy_and_numpy_base_1603466732592/work
+opencv-python==4.5.1.48
+opencv-python-headless==4.5.1.48
+pandas @ file:///C:/ci/pandas_1614711443373/work
+torch==1.7.1
+torchvision==0.8.2
